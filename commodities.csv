@@ -1,0 +1,12 @@
+﻿Commodities ,Symbol
+GOLD FUTURES,GC=F
+Silver FUTURES,SI=F
+Copper FUTURES,HG=F
+CRUDE OIL,CL=F
+Brent Crude Oil ,BZ=F
+Natural Gas FUTURES,NG=F
+"Corn Futures,FUTURES",ZC=F
+"KC HRW Wheat FUTURES",KE=F
+Coffee FUTURES,KC=F
+Cotton FUTURES,CT=F
+Sugar FUTURES,SB=F
