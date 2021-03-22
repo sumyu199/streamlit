@@ -16,7 +16,7 @@ st.title('Technical Analysis Application')
 st.markdown("""
 **Visually** show data on a stock!
  """)
-st.write("Created by Sum Yu Ng [link](https://sumyu199.github.io/sumyuprofile/index.html)")
+st.write("Created by [Sum Yu Ng](https://sumyu199.github.io/sumyuprofile/index.html)")
 image = Image.open("image.jpeg")
 st.image(image,use_column_width=True)
 
