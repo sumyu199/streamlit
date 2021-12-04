@@ -1,15 +1,16 @@
 import streamlit as st
 import pandas as pd
 from PIL import Image
-import pandas_datareader as web
-import requests
 import numpy as np
 import base64
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import datetime
-from pandas_datareader._utils import RemoteDataError
 from sklearn.svm import SVR
+import yfinance as yfin
+from pandas_datareader import data as pdr
+from datetime import datetime, date
+yfin.pdr_override()
 
 st.title('Technical Analysis Application')
 
@@ -73,11 +74,11 @@ df3 = pd.read_csv('commodities.csv')
 st.header('Commodities Symbol')
 st.write(df3)
 
-#function of user input features,create a data input area to get the user inputs
-today = datetime.date.today()
+##function of user input features,create a data input area to get the user inputs
+today = date.today()
 def user_input_features():
-    ticker = st.sidebar.text_input("Ticker","^HSI")
-    start_date = st.sidebar.date_input('Start date', datetime.date(2018,1,1))
+    ticker = st.sidebar.text_input("Ticker","HSI")
+    start_date = st.sidebar.date_input('Start date', datetime(2018,1,1))
     end_date = st.sidebar.date_input("End Date", today)
     #indicator selection
     options = ['Select Indicator','Bollinger Bands with RSI','MACD', 'OBV']
@@ -97,21 +98,34 @@ def user_input_features():
 #store the results
 symbol, start, end , indicator_selection1,indicator_selection2,indicator_selection3 = user_input_features()
 
+
 #function of matching the yahoo finance stickers
+df1 = {'Security': df['Security']}
+df1 = pd.DataFrame.from_dict(df1)
+df1['Symbol'] = df['Symbol']
+new_row = {'Security':'Hang Seng Index', 'Symbol': 'HSI'}
+#append row to the dataframe
+df1= df1.append(new_row, ignore_index=True)
+# store the loaded data and group the data by sector
+df_union_all = pd.DataFrame(np.concatenate([df1.values, df2.values, df3.values]), columns=df1.columns)
+
 def get_symbol(symbol):
-    url = "http://d.yimg.com/autoc.finance.yahoo.com/autoc?query={}&region=1&lang=en".format(symbol)
-    result = requests.get(url).json()
-    for x in result['ResultSet']['Result']:
-        if x['symbol'] == symbol:
-            return x['name']
+    df_union_all = pd.DataFrame(np.concatenate([df1.values, df2.values, df3.values]), columns=df1.columns)
+    for i in range(len(df_union_all)):
+        if df_union_all['Symbol'][i] == symbol:
+            return df_union_all['Security'][i]
+
 company_name = get_symbol(symbol.upper())
 
-start = pd.to_datetime(start)
-end = pd.to_datetime(end)
+
+start = pd.to_datetime(start).strftime('%Y-%m-%d')
+end = pd.to_datetime(end).strftime('%Y-%m-%d')
+
 
 # Read data
 try:
-    data = web.DataReader(symbol, 'yahoo', start, end)
+
+    data = pdr.get_data_yahoo(symbol, start, end)
     data.to_csv('histdata.csv')
     data = pd.read_csv('histdata.csv')
     data = data.set_index(pd.DatetimeIndex(data['Date'].values))
@@ -674,63 +688,65 @@ try:
             tech_df.style.applymap(green, subset=['BB_Buy_Signal_Price']).applymap(red, subset=['BB_Sell_Signal_Price'])
             .applymap(green, subset=['MACD_Buy_Signal_Price']).applymap(red, subset=['MACD_Sell_Signal_Price']).
             applymap(green, subset=['OBV_Buy_Signal_Price']).applymap(red, subset=['OBV_Sell_Signal_Price']))
-except RemoteDataError:
-    st.error("Please enter a valid ticker")
-df = pd.read_csv('histdata.csv')
-df = df[-30:].reset_index()
-#Create an empty list to store the independent and dependent data
-days = []
-close_prices = []
-data_days = df.index
-data_close = df.loc[:,'Close']
-for day in data_days:
-    days.append([int(day)])
-#create the dependent dat set
-for close_price in data_close:
-    close_prices.append(float(close_price))
 
-#create and train a SVR model using a linear kernel
-lin_svr = SVR(kernel = 'linear' , C = 1000.0)
-lin_svr.fit(days,close_prices)
+    df = pd.read_csv('histdata.csv')
+    df = df[-30:].reset_index()
+    # Create an empty list to store the independent and dependent data
+    days = []
+    close_prices = []
+    data_days = df.index
+    data_close = df.loc[:, 'Close']
+    for day in data_days:
+        days.append([int(day)])
+    # create the dependent dat set
+    for close_price in data_close:
+        close_prices.append(float(close_price))
 
-#create and train a SVR model using a polynomial kernel
-poly_svr = SVR(kernel = 'poly' , C = 1000.0,degree = 2)
-poly_svr.fit(days,close_prices)
+    # create and train a SVR model using a linear kernel
+    lin_svr = SVR(kernel='linear', C=1000.0)
+    lin_svr.fit(days, close_prices)
 
-#create and train a SVR model using a rbf kernel
-rbf_svr = SVR(kernel = 'rbf' , C = 1000.0,gamma = 0.15)
-rbf_svr.fit(days,close_prices)
+    # create and train a SVR model using a polynomial kernel
+    poly_svr = SVR(kernel='poly', C=1000.0, degree=2)
+    poly_svr.fit(days, close_prices)
 
-fig = go.Figure()
-        # Add traces
-fig.add_trace(go.Scatter(x= df['Date'], y=close_prices,
-                                 mode='markers',
-                                 name='Original Close Price',
-                                 line=dict(color='black')))
-fig.add_trace(go.Scatter(x= df['Date'], y=rbf_svr.predict(days),
-                                 mode='lines',
-                                 name='RBF Model',
-                                 line=dict(color='green')))
-fig.add_trace(go.Scatter(x= df['Date'], y=poly_svr.predict(days),
-                                 mode='lines',
-                                 name='Poly Model',
-                                 line=dict(color='orange')))
-fig.add_trace(go.Scatter(x= df['Date'], y=lin_svr.predict(days),
-                                 mode='lines',
-                                 name='Linear Model',
-                                 line=dict(color='blue')))
+    # create and train a SVR model using a rbf kernel
+    rbf_svr = SVR(kernel='rbf', C=1000.0, gamma=0.15)
+    rbf_svr.fit(days, close_prices)
+
+    fig = go.Figure()
+    # Add traces
+    fig.add_trace(go.Scatter(x=df['Date'], y=close_prices,
+                             mode='markers',
+                             name='Original Close Price',
+                             line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=df['Date'], y=rbf_svr.predict(days),
+                             mode='lines',
+                             name='RBF Model',
+                             line=dict(color='green')))
+    fig.add_trace(go.Scatter(x=df['Date'], y=poly_svr.predict(days),
+                             mode='lines',
+                             name='Poly Model',
+                             line=dict(color='orange')))
+    fig.add_trace(go.Scatter(x=df['Date'], y=lin_svr.predict(days),
+                             mode='lines',
+                             name='Linear Model',
+                             line=dict(color='blue')))
+
+    fig.update_layout(
+        autosize=False,
+        width=800,
+        height=600)
+    st.header(f"SVR Regression\n {company_name}")
+    st.plotly_chart(fig)
+
+    day = [[len(data_days) + 1]]
+    st.write(f"Next Day prediction of {company_name}")
+    st.write(f"The RBF SVR Predicted: {rbf_svr.predict(day)}")
+    st.write(f"The Poly SVR Predicted: {poly_svr.predict(day)}")
+    st.write(f"The Linear SVR Predicted:{lin_svr.predict(day)}")
+
+except ValueError:
+    st.error("No data found, symbol may be delisted! Please enter a valid ticker")
 
 
-
-fig.update_layout(
-            autosize=False,
-            width=800,
-            height=600)
-st.header(f"SVR Regression\n {company_name}")
-st.plotly_chart(fig)
-
-day = [[len(data_days)+1]]
-st.write(f"Next Day prediction of {company_name}")
-st.write(f"The RBF SVR Predicted: {rbf_svr.predict(day)}")
-st.write(f"The Poly SVR Predicted: {poly_svr.predict(day)}")
-st.write(f"The Linear SVR Predicted:{lin_svr.predict(day)}")
