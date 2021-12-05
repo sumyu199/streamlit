@@ -1,4 +1,4 @@
-base64 == 2.1.0
+base58 == 2.1.0
 fix-yahoo-finance==0.1.30
 image==1.5.33
 matplotlib-inline==0.1.3
