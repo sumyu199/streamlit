@@ -33,7 +33,7 @@ st.write("6.Follow the instruction of the indicators to interpret the indicators
 st.sidebar.header('User Inputs')
 
 #function of loading the tickers information
-@st.cache
+@st.cache_data
 def load_data():
     url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
     html = pd.read_html(url, header = 0)
@@ -105,7 +105,7 @@ df1 = pd.DataFrame.from_dict(df1)
 df1['Symbol'] = df['Symbol']
 new_row = {'Security':'Hang Seng Index', 'Symbol': 'HSI'}
 #append row to the dataframe
-df1= df1.append(new_row, ignore_index=True)
+df1= df1._append(new_row, ignore_index=True)
 # store the loaded data and group the data by sector
 df_union_all = pd.DataFrame(np.concatenate([df1.values, df2.values, df3.values]), columns=df1.columns)
 
